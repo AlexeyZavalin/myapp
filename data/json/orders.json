@@ -1,0 +1,25 @@
+{
+    "orders": [
+        {
+            "item": "Product 1",
+            "quantity": 3,
+            "price": 500,
+            "buyer": "buyer",
+            "date": "21-06-2019"
+        },
+        {
+            "item": "Product 1",
+            "quantity": 3,
+            "price": 500,
+            "buyer": "buyer",
+            "date": "21-06-2019"
+        },
+        {
+            "item": "Product 1",
+            "quantity": 3,
+            "price": 500,
+            "buyer": "buyer",
+            "date": "21-06-2019"
+        }
+    ]
+}
