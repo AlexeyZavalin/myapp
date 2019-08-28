@@ -1,2 +1,7 @@
 pyyaml
 ipython
+chardet
+requests
+pytest
+pytest-cov
+fabric3
