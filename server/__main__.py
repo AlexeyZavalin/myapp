@@ -35,23 +35,21 @@ sock.listen(5)
 host = config.get("host")
 port = config.get("port")
 
-print(f'Server was started with {host}:{port}')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('main.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
 
-logger = logging.getLogger('main')
-logger.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-handler = logging.FileHandler('main.log')
-handler.setFormatter(formatter)
-handler.setLevel(logging.DEBUG)
-
-logger.addHandler(handler)
+logging.info(f'Server was started with {host}:{port}')
 
 try:
     while True:
         client, address = sock.accept()
-        logger.info(f'Client was connected with {address[0]}:{address[1]}')
+        logging.info(f'Client was connected with {address[0]}:{address[1]}')
         b_request = client.recv(config.get('buffer_size'))
         request = json.loads(b_request.decode())
 
@@ -60,19 +58,19 @@ try:
             controller = resolve(action_name)
             if controller:
                 try:
-                    logger.debug(
+                    logging.debug(
                         f'Controller {action_name} resolverd witch request: {request}')
                     response = controller(request)
                 except Exception as err:
-                    logger.critical(f'Controller {action_name} error: {err}')
+                    logging.critical(f'Controller {action_name} error: {err}')
                     response = make_response(
                         request, 500, 'Internal server error')
             else:
-                logger.error(f'Controller {action_name} not found')
+                logging.error(f'Controller {action_name} not found')
                 response = make_response(
                     request, 404, f'action with name {action_name} not supported')
         else:
-            logger.error(f'Controller wrong request: {request}')
+            logging.error(f'Controller wrong request: {request}')
             response = make_response(request, 400, 'wrong request format')
 
         client.send(
@@ -81,4 +79,4 @@ try:
         client.close()
 
 except KeyboardInterrupt:
-    logger.info('Server shutdown')
+    logging.info('Server shutdown')

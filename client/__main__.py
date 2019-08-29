@@ -1,8 +1,10 @@
 from socket import socket
 import yaml
 import json
+import hashlib
 from datetime import datetime
 from argparse import ArgumentParser
+import logging
 
 parser = ArgumentParser()
 parser.add_argument(
@@ -28,7 +30,21 @@ port = config.get("port")
 sock = socket()
 sock.connect((host, port,))
 
-print('Client was started')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('main.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+
+logging.info('Client was started')
+
+hash_obj = hashlib.sha256()
+hash_obj.update(
+    str(datetime.now().timestamp()).encode()
+)
 
 action = input('Enter action: ')
 data = input('Enter data: ')
@@ -36,13 +52,14 @@ data = input('Enter data: ')
 request = {
     'action': action,
     'time': datetime.now().timestamp(),
-    'data': data
+    'data': data,
+    'token': hash_obj.hexdigest()
 }
 
 s_request = json.dumps(request)
 
 sock.send(s_request.encode())
 
-print(f'Client send data: {data}')
+logging.info(f'Client send data: {data}')
 b_response = sock.recv(config.get('buffer_size'))
-print(b_response.decode())
+logging.info(b_response.decode())
