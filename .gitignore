@@ -2,12 +2,8 @@ venv
 .idea
 .ipynb_checkpoints
 .vscode
-server/__pycache__
-__pycache__
-main.log
+*.log
 .coverage
-client/__pycache__
-server/echo/__pycache__
-server/servererrors/__pycache__
+**/__pycache__/
 client/__pycache__
 server/__pycache__

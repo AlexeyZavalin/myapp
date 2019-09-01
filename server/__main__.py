@@ -1,15 +1,33 @@
-from socket import socket
 import yaml
 import json
+import select
 import logging
+import threading
+from socket import socket
 from argparse import ArgumentParser
 
 from protocol import validate_request, make_response
-
+from handlers import handle_default_request
 from resolvers import resolve
 
 
+def read(sock, connections, requests, buffersize):
+    try:
+        bytes_request = sock.recv(buffersize)
+    except Exception:
+        connections.remove(sock)
+    else:
+        if bytes_request:
+            requests.append(bytes_request)
+
+def write(sock, connection, response):
+    try:
+        sock.send(response)
+    except Exception:
+        connection.remove(sock)
+
 parser = ArgumentParser()
+
 parser.add_argument(
     '-c', '--config', type=str,
     required=False, help='Sets config file path'
@@ -17,23 +35,18 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-config = {
+default_config = {
     'host': 'localhost',
     'port': 8000,
-    'buffer_size': 1024
+    'buffersize': 1024
 }
 
 if args.config:
     with open(args.config) as file:
-        config_load = yaml.load(file, Loader=yaml.Loader)
-        config.update(config_load)
+        file_config = yaml.load(file, Loader=yaml.Loader)
+        default_config.update(file_config)
 
-sock = socket()
-sock.bind((config.get('host'), config.get('port'),))
-sock.listen(5)
-
-host = config.get("host")
-port = config.get("port")
+host, port = (default_config.get('host'), default_config.get('port'))
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -44,39 +57,46 @@ logging.basicConfig(
     ]
 )
 
-logging.info(f'Server was started with {host}:{port}')
+requests = []
+connections = []
 
 try:
+    sock = socket()
+    sock.bind((host, port,))
+    sock.settimeout(0)
+    sock.listen(5)
+
+    logging.info(f'Server was started with {host}:{port}')
+
     while True:
-        client, address = sock.accept()
-        logging.info(f'Client was connected with {address[0]}:{address[1]}')
-        b_request = client.recv(config.get('buffer_size'))
-        request = json.loads(b_request.decode())
+        try:
+            client, address = sock.accept()
 
-        if validate_request(request):
-            action_name = request.get('action')
-            controller = resolve(action_name)
-            if controller:
-                try:
-                    logging.debug(
-                        f'Controller {action_name} resolverd witch request: {request}')
-                    response = controller(request)
-                except Exception as err:
-                    logging.critical(f'Controller {action_name} error: {err}')
-                    response = make_response(
-                        request, 500, 'Internal server error')
-            else:
-                logging.error(f'Controller {action_name} not found')
-                response = make_response(
-                    request, 404, f'action with name {action_name} not supported')
-        else:
-            logging.error(f'Controller wrong request: {request}')
-            response = make_response(request, 400, 'wrong request format')
+            connections.append(client)
 
-        client.send(
-            json.dumps(response).encode()
+            logging.info(f'Client was connected with {address[0]}:{address[1]} | Connections: {connections}')
+        except :
+            pass
+
+        rlist, wlist, xlist = select.select(
+            connections, connections, connections, 0
         )
-        client.close()
+
+        for r_client in rlist:
+            r_thread = threading.Thread(
+                target=read, args=(r_client, connections, requests, default_config.get('buffersize'))
+            )
+            r_thread.start()
+
+        if requests:
+            b_request = requests.pop()
+            b_response = handle_default_request(b_request)
+
+            for w_client in wlist:
+                w_thread = threading.Thread(
+                    target=write, args=(w_client, connections, b_response)
+                )
+                w_thread.start()
 
 except KeyboardInterrupt:
     logging.info('Server shutdown')

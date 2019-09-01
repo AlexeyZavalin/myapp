@@ -1,65 +1,71 @@
-from socket import socket
+import zlib
 import yaml
 import json
 import hashlib
+import threading
+from socket import socket
 from datetime import datetime
 from argparse import ArgumentParser
-import logging
+
+
+def read(sock, buffersize):
+    while True:
+        comporessed_response = sock.recv(buffersize)
+        b_response = zlib.decompress(comporessed_response)
+        print(b_response.decode())
 
 parser = ArgumentParser()
+
 parser.add_argument(
     '-c', '--config', type=str,
     required=False, help='Sets config file path'
 )
-
 args = parser.parse_args()
 
-config = {
+default_config = {
     'host': 'localhost',
     'port': 8000,
-    'buffer_size': 1024
+    'buffersize': 1024
 }
+
 if args.config:
     with open(args.config) as file:
-        config_load = yaml.load(file, Loader=yaml.Loader)
-        config.update(config_load)
-
-host = config.get("host")
-port = config.get("port")
+        file_config = yaml.load(file, Loader=yaml.Loader)
+        default_config.update(file_config)
 
 sock = socket()
-sock.connect((host, port,))
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('main.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
+sock.connect(
+    (default_config.get('host'), default_config.get('port'))
 )
 
-logging.info('Client was started')
+print(f'Client was started')
 
-hash_obj = hashlib.sha256()
-hash_obj.update(
-    str(datetime.now().timestamp()).encode()
-)
+try:
+    read_thread = threading.Thread(
+        target=read, args=(sock, default_config.get('buffersize'),)
+    )
+    read_thread.start()
+    
+    while True:
+        hash_obj = hashlib.sha256()
+        hash_obj.update(
+            str(datetime.now().timestamp()).encode()
+        )
 
-action = input('Enter action: ')
-data = input('Enter data: ')
+        action = input('Enter action: ')
+        data = input('Enter data: ')
 
-request = {
-    'action': action,
-    'time': datetime.now().timestamp(),
-    'data': data,
-    'token': hash_obj.hexdigest()
-}
+        request = {
+            'action': action,
+            'time': datetime.now().timestamp(),
+            'data': data,
+            'token': hash_obj.hexdigest()
+        }
 
-s_request = json.dumps(request)
-
-sock.send(s_request.encode())
-
-logging.info(f'Client send data: {data}')
-b_response = sock.recv(config.get('buffer_size'))
-logging.info(b_response.decode())
+        s_request = json.dumps(request)
+        b_request = zlib.compress(s_request.encode())
+        sock.send(b_request)
+        print(f'Client send data: {data}')
+except KeyboardInterrupt:
+    sock.close()
+    print('Client shutdown')

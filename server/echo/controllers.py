@@ -5,4 +5,5 @@ from decorators import logged
 
 @logged
 def echo_controller(request):
-    return make_response(request, 200, request.get('data'))
+    data = request.get('data')
+    return make_response(request, 200, data)
