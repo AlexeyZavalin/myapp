@@ -8,9 +8,9 @@ from datetime import datetime
 from argparse import ArgumentParser
 
 
-def read(sock, buffersize):
+def read(sock, buffer_size):
     while True:
-        comporessed_response = sock.recv(buffersize)
+        comporessed_response = sock.recv(buffer_size)
         b_response = zlib.decompress(comporessed_response)
         print(b_response.decode())
 
@@ -25,7 +25,7 @@ args = parser.parse_args()
 default_config = {
     'host': 'localhost',
     'port': 8000,
-    'buffersize': 1024
+    'buffer_size': 1024
 }
 
 if args.config:
@@ -42,7 +42,7 @@ print(f'Client was started')
 
 try:
     read_thread = threading.Thread(
-        target=read, args=(sock, default_config.get('buffersize'),)
+        target=read, args=(sock, default_config.get('buffer_size'),)
     )
     read_thread.start()
     
